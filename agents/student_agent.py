@@ -22,9 +22,73 @@ class StudentAgent(Agent):
                player, opponent - your player number (1 or 2) and the other one.
         Agent.step in agents/agent.py explains each argument and the time limit.
         """
+        LIMIT = STEP_TIME_LIMIT - 0.3
+        WIN = 10_000
         start = time.perf_counter()
         # ALLOW_MOVES and WIN_LENGTH (from constants) are the rule flags of this game.
         # helpers.get_valid_moves / check_winner already respect them; your own
         # move generator and evaluation function must too.
         # TODO: replace with your search. Keep (time.perf_counter() - start) < STEP_TIME_LIMIT - margin.
-        return random_move(board, reserves, player)
+
+        class Timeout(Exception):
+            pass
+
+        def after(board, reserves, player, move):
+            b, r = copy_state(board, reserves)
+            execute_move(b, r, player, move)
+            return b, r
+
+        def Eval(b, r):
+            return 0
+
+        def max_value(b, r, alpha, beta, depth, last_mover):
+            if time.perf_counter() - start > LIMIT:
+                raise Timeout
+            w = check_winner(b, last_mover)
+            if w:
+                return WIN + depth if w == player else -WIN - depth
+            if depth == 0:
+                return Eval(b, r)
+            moves = get_valid_moves(b, r, player)
+            if not moves:
+                return Eval(b, r)
+            for mv in moves:
+                b2, r2 = after(b, r, player, mv)
+                alpha = max(alpha, min_value(b2, r2, alpha, beta, depth - 1, player))
+                if alpha >= beta:
+                    return beta
+            return alpha
+
+        def min_value(b, r, alpha, beta, depth, last_mover):
+            if time.perf_counter() - start > LIMIT:
+                raise Timeout
+            w = check_winner(b, last_mover)
+            if w:
+                return WIN + depth if w == player else -WIN - depth
+            if depth == 0:
+                return Eval(b, r)
+            moves = get_valid_moves(b, r, opponent)
+            if not moves:
+                return Eval(b, r)
+            for mv in moves:
+                b2, r2 = after(b, r, opponent, mv)
+                beta = min(beta, max_value(b2, r2, alpha, beta, depth - 1, opponent))
+                if alpha >= beta:
+                    return alpha
+            return beta
+
+        root_moves = get_valid_moves(board, reserves, player)
+        best_move = root_moves[0]
+        try:
+            alpha, cur_best = -float("inf"), root_moves[0]
+            for mv in root_moves:
+                b2, r2 = after(board, reserves, player, mv)
+                v = min_value(b2, r2, alpha, float("inf"), 3 - 1, player)
+                if v > alpha:
+                    alpha, cur_best = v, mv
+            best_move = cur_best           
+        except Timeout:
+            pass
+        return best_move
+
+        
