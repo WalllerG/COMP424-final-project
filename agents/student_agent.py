@@ -38,8 +38,93 @@ class StudentAgent(Agent):
             execute_move(b, r, player, move)
             return b, r
 
-        def Eval(b, r):
-            return 0
+        def eval(board, reserves, player):
+            SIZE_BLUE = (1.0, 2.0, 3.0)
+            SIZE_RED = (-1.0, -2.0, -3.0) 
+            
+            score = 0.0
+
+
+            value = []
+            top = []
+
+            for r in range(4):
+                value_row = []
+                top_row = []
+
+                for c in range(4):
+                    if board[r][c][s] == OBSTACLE:
+                        value_row.append(0.0)
+                        top_row.append(3)
+                        continue
+                    v = 0.0
+                    owner_on_top = 0
+                    for s in (0,1,2):
+                        owner = board[r][c][s]
+                        if owner == player: 
+                            v += SIZE_BLUE[s]
+                            owner_on_top = owner
+                        elif owner == (3-player):
+                            v += SIZE_RED[s]
+                            owner_on_top = owner
+                    value_row.append(v)
+                    top_row.append(owner_on_top)
+                value.append(value_row)
+                top.append(top_row)
+
+
+
+            lines = []
+
+            for r in range(4):
+                line = []
+                for c in range(4):
+                    line.append((value[r][c], top[r][c]))
+                lines.append(line)
+
+            for c in range(4):
+                line = []
+                for r in range(4):
+                    line.append((value[r][c], top[r][c]))
+                lines.append(line)
+
+            line = []
+            for d in range(4):
+                line.append((value[d][d], top[d][d]))
+            lines.append(line)
+
+            line = []
+            for d in range(4):
+                line.append((value[d][3-d], top[d][3-d]))
+            lines.append(line)
+
+
+            for line in lines:
+                
+                blocked = False
+                for v, t in line:
+                    if t == 3:
+                        blocked = True
+                    if blocked:
+                        continue
+
+                n = 1.5
+                m = 1.5
+                for v, t in line:
+                    if t == player:
+                        score += v + n
+                        n = n ** 2
+                    elif t == (3-player):
+                        score += v - m 
+                        m = m ** 2
+
+            return score
+
+
+                
+
+
+            
 
         def max_value(b, r, alpha, beta, depth, last_mover):
             if time.perf_counter() - start > LIMIT:
