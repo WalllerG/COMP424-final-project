@@ -40,20 +40,27 @@ class StudentAgent(Agent):
 
         def Eval(b, r):
             owners, sizes = top_view(b)
+            SIZE_W = np.array([1.0, 1.5, 2.0])          # small, medium, large
             LINE_SCORE = {0: 0, 1: 1, 2: 10, 3: 100, 4: 10_000}
-            lines = [owners[i, :] for i in range(4)] + [owners[:, j] for j in range(4)]
-            lines += [owners.diagonal(), np.fliplr(owners).diagonal()]
 
-            score = 0
-            for line in lines:
-                if (line == OBSTACLE).any():
+            cells = [[(i, j) for j in range(4)] for i in range(4)]          # rows
+            cells += [[(i, j) for i in range(4)] for j in range(4)]         # columns
+            cells += [[(d, d) for d in range(4)], [(d, 3 - d) for d in range(4)]]
+
+            score = 0.0
+            for line in cells:
+                o = np.array([owners[c] for c in line])
+                if (o == OBSTACLE).any():
                     continue
-                mine = (line == player).sum()
-                theirs = (line == opponent).sum()
+                mine, theirs = (o == player).sum(), (o == opponent).sum()
                 if mine and not theirs:
-                    score += LINE_SCORE[mine]
+                    weight = np.mean([SIZE_W[sizes[c]] for c in line if owners[c] == player])
+                    score += LINE_SCORE[mine] * weight
                 elif theirs and not mine:
-                    score -= LINE_SCORE[theirs]
+                    weight = np.mean([SIZE_W[sizes[c]] for c in line if owners[c] == opponent])
+                    score -= LINE_SCORE[theirs] * weight
+
+            score += 2.0 * (r[player - 1][2] - r[opponent - 1][2])
             return score
 
         def max_value(b, r, alpha, beta, depth, last_mover):
