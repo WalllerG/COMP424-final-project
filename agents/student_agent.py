@@ -2,7 +2,7 @@
 from agents.agent import Agent
 from store import register_agent
 from helpers import (Move, get_valid_moves, execute_move, check_winner,
-                     check_endgame, random_move, copy_state, top_view)
+                     check_endgame, random_move, copy_state, top_view, LINES)
 from constants import *
 import numpy as np
 import time
@@ -17,7 +17,7 @@ class StudentAgent(Agent):
 
     def step(self, board, reserves, player, opponent):
         """Return the Move you want to play.
-
+        
         Takes: board, reserves - your own copies of the current position.
                player, opponent - your player number (1 or 2) and the other one.
         Agent.step in agents/agent.py explains each argument and the time limit.
@@ -29,24 +29,27 @@ class StudentAgent(Agent):
         # helpers.get_valid_moves / check_winner already respect them; your own
         # move generator and evaluation function must too.
         # TODO: replace with your search. Keep (time.perf_counter() - start) < STEP_TIME_LIMIT - margin.
-
+        
         class Timeout(Exception):
             pass
-
+        
         def after(board, reserves, player, move):
             b, r = copy_state(board, reserves)
             execute_move(b, r, player, move)
             return b, r
-
+        
         def Eval(b, r):
             owners, sizes = top_view(b)
             LINE_SCORE = {0: 0, 1: 1, 2: 10, 3: 100, 4: 10_000}
-            lines = [owners[i, :] for i in range(4)] + [owners[:, j] for j in range(4)]
-            lines += [owners.diagonal(), np.fliplr(owners).diagonal()]
 
-            score = 0
-            for line in lines:
-                if (line == OBSTACLE).any():
+            cells = [[(i, j) for j in range(4)] for i in range(4)]          # rows
+            cells += [[(i, j) for i in range(4)] for j in range(4)]         # columns
+            cells += [[(d, d) for d in range(4)], [(d, 3 - d) for d in range(4)]]
+
+            score = 0.0
+            for line in cells:
+                o = np.array([owners[c] for c in line])
+                if (o == OBSTACLE).any():
                     continue
                 mine = (line == player).sum()
                 theirs = (line == opponent).sum()
@@ -55,7 +58,7 @@ class StudentAgent(Agent):
                 elif theirs and not mine:
                     score -= LINE_SCORE[theirs]
             return score
-
+        
         def max_value(b, r, alpha, beta, depth, last_mover):
             if time.perf_counter() - start > LIMIT:
                 raise Timeout
@@ -73,7 +76,7 @@ class StudentAgent(Agent):
                 if alpha >= beta:
                     return beta
             return alpha
-
+        
         def min_value(b, r, alpha, beta, depth, last_mover):
             if time.perf_counter() - start > LIMIT:
                 raise Timeout
@@ -91,7 +94,7 @@ class StudentAgent(Agent):
                 if alpha >= beta:
                     return alpha
             return beta
-
+        
         root_moves = get_valid_moves(board, reserves, player)
         best_move = root_moves[0]
         try:
